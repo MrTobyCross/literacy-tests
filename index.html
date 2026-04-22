@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baseline Literacy Tests</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:linear-gradient(160deg,#f0ede8 0%,#FAFAF7 50%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;color:#1a1a1a}
+.container{max-width:560px;width:100%;text-align:center}
+.badge{display:inline-block;background:#2D6A4F;color:white;padding:6px 20px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:20px}
+h1{font-size:34px;font-weight:800;line-height:1.2;margin-bottom:6px}
+.sub{font-family:'Newsreader',Georgia,serif;font-size:16px;color:#777;margin-bottom:40px}
+.cards{display:flex;flex-direction:column;gap:14px}
+.card{display:block;text-decoration:none;background:white;border:1px solid #E2DFD8;border-radius:16px;padding:24px 28px;text-align:left;transition:all 0.2s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.08)}
+.card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:5px}
+.card-rv::before{background:#6A2D8B}
+.card-w::before{background:#C44536}
+.card-title{font-size:18px;font-weight:800;margin-bottom:4px}
+.card-rv .card-title{color:#6A2D8B}
+.card-w .card-title{color:#C44536}
+.card-desc{font-family:'Newsreader',Georgia,serif;font-size:14px;color:#777;line-height:1.5}
+.card-meta{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.card-tag{font-size:11px;font-weight:600;padding:3px 10px;border-radius:6px;background:#f5f5f0;color:#555}
+.card-arrow{position:absolute;right:24px;top:50%;transform:translateY(-50%);font-size:20px;color:#ccc;transition:all 0.2s}
+.card:hover .card-arrow{color:#555;right:20px}
+.footer{margin-top:40px;font-family:'Newsreader',Georgia,serif;font-size:12px;color:#aaa;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">Baseline Literacy Tests</div>
+  <h1>Years 7–10</h1>
+  <p class="sub">National Literacy Learning Progression · Australian Curriculum v8.4</p>
+  <div class="cards">
+    <a href="reading.html" class="card card-rv">
+      <div class="card-title">Reading & Viewing</div>
+      <div class="card-desc">Three texts with comprehension, inference, analysis and vocabulary questions.</div>
+      <div class="card-meta">
+        <span class="card-tag">UnT4–UnT11</span>
+        <span class="card-tag">~40 minutes</span>
+      </div>
+      <span class="card-arrow">→</span>
+    </a>
+    <a href="writing.html" class="card card-w">
+      <div class="card-title">Writing</div>
+      <div class="card-desc">Spelling dictation, editing task, persuasive writing and choice writing.</div>
+      <div class="card-meta">
+        <span class="card-tag">SpG · GrA · PuN · CrT</span>
+        <span class="card-tag">~40 minutes</span>
+      </div>
+      <span class="card-arrow">→</span>
+    </a>
+  </div>
+  <div class="footer">
+    Teacher Mode PIN: 1234<br>
+    Students submit their auto-downloaded PDF results to their teacher.
+  </div>
+</div>
+</body>
+</html>

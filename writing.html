@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baseline Literacy Test — Writing</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#FAFAF7;--surface:#FFF;--text:#1a1a1a;--muted:#777;--red:#C44536;--red-light:#FDF0EE;--red-mid:#E8A49C;--green:#2D6A4F;--green-light:#D8F3DC;--border:#E2DFD8;--border-light:#EEEBE5;--font-display:'Outfit',sans-serif;--font-body:'Newsreader',Georgia,serif}
+body{font-family:var(--font-display);background:var(--bg);color:var(--text)}
+.pin-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100}
+.pin-box{background:white;border-radius:16px;padding:32px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useCallback,useMemo,useRef}=React;
+
+const ALL_CRT=["Below CrT1","CrT1","CrT2","CrT3","CrT4","CrT5","CrT6","CrT7","CrT8","CrT9","CrT10","CrT11"];
+const ALL_GRA=["Below GrA1","GrA1","GrA2","GrA3","GrA4","GrA5","GrA6","GrA7"];
+const ALL_PUN=["Below PuN1","PuN1","PuN2","PuN3","PuN4","PuN5","PuN6","PuN7","PuN8"];
+const ALL_SPG=["Below SpG1","SpG1","SpG2","SpG3","SpG4","SpG5","SpG6","SpG7","SpG8","SpG9","SpG10","SpG11","SpG12","SpG13","SpG14"];
+
+const SPELL=[
+  {word:"cat",level:"SpG4",sent:"The cat sat on the mat."},
+  {word:"jump",level:"SpG4",sent:"I like to jump on the trampoline."},
+  {word:"playing",level:"SpG5",sent:"The children are playing in the park."},
+  {word:"house",level:"SpG5",sent:"We live in a big house."},
+  {word:"boxes",level:"SpG6",sent:"We packed the boxes for moving day."},
+  {word:"shopping",level:"SpG6",sent:"Mum went shopping for groceries."},
+  {word:"family",level:"SpG7",sent:"My family went on holiday last week."},
+  {word:"engine",level:"SpG7",sent:"The engine of the car stopped working."},
+  {word:"through",level:"SpG8",sent:"We walked through the forest."},
+  {word:"environment",level:"SpG8",sent:"We need to protect the environment."},
+  {word:"necessary",level:"SpG9",sent:"It is necessary to wear a seatbelt."},
+  {word:"disappearance",level:"SpG9",sent:"The disappearance of the wildlife concerned scientists."},
+  {word:"conscience",level:"SpG10",sent:"Her conscience told her to tell the truth."},
+  {word:"independent",level:"SpG10",sent:"She became more independent as she grew older."},
+];
+
+const EDIT_PASSAGE="australia has many amazing animals. The kangaroo are the most famous and they is found all across the country. kangaroos can jump very far they use there strong legs to travel quickly.\n\nBaby kangaroos is called joeys. A joey live in its mothers pouch for about six months. The mother kangaroo take good care of it's baby.";
+
+const EDIT_ERRORS=[
+  {e:"australia \u2014 no capital",f:"Australia",t:"PuN"},
+  {e:"kangaroo are \u2014 subject-verb agreement",f:"kangaroo is",t:"GrA"},
+  {e:"they is found \u2014 subject-verb agreement",f:"they are found",t:"GrA"},
+  {e:"kangaroos (start) \u2014 no capital",f:"Kangaroos",t:"PuN"},
+  {e:"very far they \u2014 run-on / missing full stop",f:"very far. They",t:"PuN/GrA"},
+  {e:"there strong legs \u2014 wrong homophone",f:"their",t:"SpG"},
+  {e:"kangaroos is \u2014 subject-verb agreement",f:"kangaroos are",t:"GrA"},
+  {e:"joey live \u2014 subject-verb agreement",f:"joey lives",t:"GrA"},
+  {e:"mothers pouch \u2014 missing apostrophe",f:"mother's",t:"PuN"},
+  {e:"take \u2014 subject-verb agreement",f:"takes",t:"GrA"},
+  {e:"it's baby \u2014 wrong its/it's",f:"its",t:"SpG"},
+];
+
+const WRITING_MS={
+  "CrT1\u20133":"Attempts to convey a message. May use drawings or letter-like shapes. Ideas not in sentence form.",
+  "CrT4":"Writes one or more ideas, may be unrelated. Labels or simple sentence fragments.",
+  "CrT5":"Writes for a familiar purpose. 2\u20133 related ideas. Simple sentences with basic punctuation.",
+  "CrT6":"Writes for a range of purposes. 4+ sequenced ideas. Simple and compound sentences. Basic orientation.",
+  "CrT7":"Evidence of structure. Supports ideas with some detail. Simple, compound and some complex sentences.",
+  "CrT8":"Structural features appropriate to text type. 1\u20132 arguments. Compound and complex sentences. Cohesive devices.",
+  "CrT9":"Clear position with 2+ elaborated arguments and evidence. Structural elements for purpose. Range of sentences.",
+  "CrT10":"Well-structured with counter-argument. Rhetorical devices. Varied sentence structure. Strong cohesion.",
+  "CrT11":"Sustained, robust argument. Anticipates reader bias. Sophisticated evaluative language. Strategic evidence.",
+};
+
+const SEC_LABELS=["1. Spelling","2. Editing","3. Persuasive","4. Choice"];
+
+function genPDF(sn,yl,spA,spScore,spLevel,edA,edLvls,pA,pLvl,cA,cLvl,cOpt,isTM){
+  const w=window.open('','_blank');
+  let h=`<!DOCTYPE html><html><head><title>Writing Results \u2014 ${sn}</title><style>@page{size:A4;margin:18mm 14mm}body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a1a;line-height:1.5}h1{font-size:18px;color:#C44536;border-bottom:3px solid #C44536;padding-bottom:8px;margin-bottom:10px}h2{font-size:13px;color:#C44536;margin-top:18px;margin-bottom:6px;border-bottom:1px solid #E8A49C;padding-bottom:3px}.info{margin-bottom:14px}.info span{font-size:11px;margin-right:20px}.info strong{color:#C44536}.score{background:#C44536;color:white;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:bold;display:inline-block;margin:6px 0}.sp-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee;font-size:11px}.ok{color:#2D6A4F;font-weight:bold}.no{color:#C44536}.ans{background:#f9f9f6;border:1px solid #E2DFD8;border-radius:5px;padding:8px 12px;font-size:10px;white-space:pre-line;min-height:40px;margin-top:4px}.tbox{border:2px dashed #E8A49C;border-radius:5px;padding:6px 10px;margin-top:6px;min-height:24px}.tlbl{font-size:9px;color:#C44536;font-weight:bold;text-transform:uppercase}table.sum{width:100%;border-collapse:collapse;margin-top:10px}table.sum th{background:#C44536;color:white;padding:5px 8px;text-align:left;font-size:10px}table.sum td{border:1px solid #E2DFD8;padding:5px 8px;font-size:10px}.lc{min-width:70px;height:20px}.wc{font-size:10px;color:#888;margin-top:2px}</style></head><body>`;
+  h+=`<h1>Baseline Literacy Test \u2014 Writing</h1><div class="info"><span><strong>Student:</strong> ${sn}</span><span><strong>Year:</strong> ${yl}</span><span><strong>Date:</strong> ${new Date().toLocaleDateString('en-AU')}</span></div>`;
+  h+=`<h2>Spelling</h2><div class="score">Score: ${spScore}/${SPELL.length}</div>`;
+  SPELL.forEach((w2,i)=>{const sa=(spA['sp_'+i]||'').trim();const ok=sa.toLowerCase()===w2.word.toLowerCase();h+=`<div class="sp-row"><span>${i+1}. <strong>${w2.level}</strong></span><span>${sa||'\u2014'}</span><span class="${ok?'ok':'no'}">${ok?'\u2713':'\u2717 ('+w2.word+')'}</span></div>`;});
+  h+=`<div class="tbox"><span class="tlbl">Spelling Level: ${isTM&&spLevel?spLevel:'_______________'}</span></div>`;
+  h+=`<h2>Editing</h2><div class="ans">${edA||'<em style="color:#999">No response</em>'}</div>`;
+  h+=isTM?`<div class="tbox"><span class="tlbl">Grammar: ${edLvls.gra||'___'} | Punctuation: ${edLvls.pun||'___'} | Spelling: ${edLvls.spg||'___'}</span></div>`:`<div class="tbox"><span class="tlbl">Grammar: _______ | Punctuation: _______ | Spelling: _______</span></div>`;
+  const pWc=(pA||'').split(/\s+/).filter(Boolean).length;
+  h+=`<h2>Persuasive</h2><div class="wc">${pWc} words</div><div class="ans">${pA||'<em style="color:#999">No response</em>'}</div><div class="tbox"><span class="tlbl">CrT Level: ${isTM&&pLvl?pLvl:'_______________'}</span></div>`;
+  const cWc=(cA||'').split(/\s+/).filter(Boolean).length;const cType=cOpt===0?'Imaginative':cOpt===1?'Informative':'Choice';
+  h+=`<h2>${cType}</h2><div class="wc">${cWc} words</div><div class="ans">${cA||'<em style="color:#999">No response</em>'}</div><div class="tbox"><span class="tlbl">CrT Level: ${isTM&&cLvl?cLvl:'_______________'}</span></div>`;
+  h+=`<h2>Summary</h2><table class="sum"><tr><th>Sub-element</th><th>Level</th></tr>`;
+  h+=`<tr><td>Spelling (dictation)</td><td class="lc">${isTM&&spLevel?spLevel:''} (${spScore}/${SPELL.length})</td></tr>`;
+  h+=`<tr><td>Grammar (editing)</td><td class="lc">${isTM&&edLvls.gra?edLvls.gra:''}</td></tr>`;
+  h+=`<tr><td>Punctuation (editing)</td><td class="lc">${isTM&&edLvls.pun?edLvls.pun:''}</td></tr>`;
+  h+=`<tr><td>Spelling (editing)</td><td class="lc">${isTM&&edLvls.spg?edLvls.spg:''}</td></tr>`;
+  h+=`<tr><td>CrT \u2014 Persuasive</td><td class="lc">${isTM&&pLvl?pLvl:''}</td></tr>`;
+  h+=`<tr><td>CrT \u2014 ${cType}</td><td class="lc">${isTM&&cLvl?cLvl:''}</td></tr></table>`;
+  h+=`<div class="tbox" style="margin-top:14px"><span class="tlbl">Comments / Next Steps:</span><br><br><br></div>`;
+  h+=`<script>window.onload=function(){window.print();}<\/script></body></html>`;
+  w.document.write(h);w.document.close();
+}
+
+function PinModal({onSuccess,onClose}){
+  const[p,setP]=useState("");const[err,setErr]=useState(false);
+  const go=()=>{if(p==="1234")onSuccess();else setErr(true);};
+  return React.createElement('div',{className:'pin-overlay',onClick:e=>{if(e.target===e.currentTarget)onClose();}},
+    React.createElement('div',{className:'pin-box'},
+      React.createElement('div',{style:{fontSize:32,marginBottom:12}},'\uD83D\uDD12'),
+      React.createElement('h2',{style:{fontSize:20,fontWeight:800,color:'var(--red)',marginBottom:8}},'Teacher Mode'),
+      React.createElement('input',{type:'password',placeholder:'Enter PIN',value:p,onChange:e=>{setP(e.target.value);setErr(false);},onKeyDown:e=>{if(e.key==='Enter')go();},style:{width:'100%',padding:'12px',borderRadius:8,border:'1px solid '+(err?'var(--red)':'var(--border)'),fontSize:16,textAlign:'center',marginBottom:err?8:16,outline:'none',letterSpacing:'0.2em'}}),
+      err&&React.createElement('p',{style:{fontSize:12,color:'var(--red)',marginBottom:12}},'Incorrect PIN.'),
+      React.createElement('button',{onClick:go,style:{width:'100%',padding:'12px',borderRadius:10,border:'none',background:'var(--red)',color:'white',fontSize:15,fontWeight:700,cursor:'pointer',marginBottom:8}},'Unlock'),
+      React.createElement('button',{onClick:onClose,style:{width:'100%',padding:'10px',borderRadius:8,border:'1px solid var(--border)',background:'var(--surface)',fontSize:13,color:'var(--muted)',cursor:'pointer'}},'Cancel')));
+}
+
+function Sel({value,onChange,options,color}){
+  return React.createElement('select',{value:value||'',onChange:e=>onChange(e.target.value),style:{padding:'3px 8px',borderRadius:5,border:'1px solid '+color,fontSize:12,fontWeight:600,color:color}},
+    React.createElement('option',{value:''},'\u2014'),...options.map(o=>React.createElement('option',{key:o,value:o},o)));
+}
+
+function App(){
+  const[view,setView]=useState("start");
+  const[sn,setSn]=useState("");const[yl,setYl]=useState("");
+  const[cs,setCs]=useState(0);const[sub,setSub]=useState(false);
+  const[tm,setTm]=useState(false);const[showPin,setShowPin]=useState(false);
+  const topRef=useRef(null);
+
+  // All state at top level to prevent re-renders killing focus
+  const[spA,setSpA]=useState({});
+  const[edA,setEdA]=useState("");
+  const[pA,setPA]=useState("");
+  const[cA,setCA]=useState("");
+  const[cOpt,setCOpt]=useState(null);
+  const[edL,setEdL]=useState({});
+  const[pL,setPL]=useState("");
+  const[cL,setCL]=useState("");
+  const[revSent,setRevSent]=useState({});
+  const[showSpAns,setShowSpAns]=useState(false);
+
+  const spScore=useMemo(()=>SPELL.filter((w,i)=>(spA['sp_'+i]||'').trim().toLowerCase()===w.word.toLowerCase()).length,[spA]);
+  const spLevel=useMemo(()=>{const lo=["SpG4","SpG5","SpG6","SpG7","SpG8","SpG9","SpG10"];let h='';SPELL.forEach((w,i)=>{if((spA['sp_'+i]||'').trim().toLowerCase()===w.word.toLowerCase()){const idx=lo.indexOf(w.level);if(idx>lo.indexOf(h))h=w.level;}});return h||'Below SpG4';},[spA]);
+
+  const doSubmit=()=>{
+    const tot=Object.values(spA).filter(v=>v?.trim()).length+(edA?1:0)+(pA?1:0)+(cA?1:0);
+    const req=SPELL.length+3;
+    if(tot<req&&!window.confirm((req-tot)+' unanswered items. Submit anyway?'))return;
+    setSub(true);setView("done");
+    setTimeout(()=>genPDF(sn,yl,spA,spScore,spLevel,edA,{},pA,'',cA,'',cOpt,false),500);
+  };
+
+  const toggleTM=()=>{if(tm)setTm(false);else setShowPin(true);};
+  const tmUnlocked=()=>{setTm(true);setShowPin(false);if(!sub)setSub(true);};
+
+  const Header=()=>React.createElement('div',{style:{background:tm?'linear-gradient(90deg,#C44536,#8B2E24)':'var(--red)',padding:'14px 20px',color:'white',position:'sticky',top:0,zIndex:20}},
+    React.createElement('div',{style:{maxWidth:800,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+        React.createElement('span',{style:{fontSize:14,fontWeight:700}},'Writing Test'),
+        sn&&React.createElement('span',{style:{fontSize:12,opacity:0.7}},sn+' \u00B7 Yr '+yl),
+        tm&&React.createElement('span',{style:{fontSize:10,background:'#FFD700',color:'#1a1a1a',padding:'2px 10px',borderRadius:6,fontWeight:800}},'TEACHER MODE')),
+      React.createElement('div',{style:{display:'flex',gap:4,alignItems:'center'}},
+        SEC_LABELS.map((l,i)=>React.createElement('button',{key:i,onClick:()=>setCs(i),style:{padding:'5px 10px',borderRadius:7,border:cs===i?'2px solid white':'1px solid rgba(255,255,255,0.3)',background:cs===i?'rgba(255,255,255,0.2)':'transparent',color:'white',fontSize:11,fontWeight:600,cursor:'pointer'}},l)),
+        React.createElement('div',{style:{width:1,height:24,background:'rgba(255,255,255,0.3)',margin:'0 4px'}}),
+        React.createElement('button',{onClick:toggleTM,style:{padding:'5px 12px',borderRadius:7,border:tm?'2px solid #FFD700':'1px solid rgba(255,255,255,0.3)',background:tm?'rgba(255,215,0,0.15)':'transparent',color:tm?'#FFD700':'white',fontSize:11,fontWeight:700,cursor:'pointer'}},tm?'\u2713 Teacher':'\uD83D\uDD12 Teacher'))));
+
+  // START
+  if(view==="start") return React.createElement('div',{style:{fontFamily:'var(--font-display)',minHeight:'100vh',background:'linear-gradient(160deg,#FDF0EE 0%,#FAFAF7 40%)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}},
+    showPin&&React.createElement(PinModal,{onSuccess:tmUnlocked,onClose:()=>setShowPin(false)}),
+    React.createElement('div',{style:{maxWidth:520,width:'100%',textAlign:'center'}},
+      React.createElement('div',{style:{background:'var(--red)',color:'white',display:'inline-block',padding:'6px 18px',borderRadius:8,fontSize:12,fontWeight:700,letterSpacing:'0.08em',marginBottom:20,textTransform:'uppercase'}},'Baseline Literacy Test'),
+      React.createElement('h1',{style:{fontSize:36,fontWeight:800,color:'var(--red)',lineHeight:1.2,marginBottom:8}},'Writing'),
+      React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:16,color:'var(--muted)',marginBottom:36}},'Years 7\u201310 \u00B7 National Literacy Learning Progression'),
+      React.createElement('div',{style:{background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',padding:'28px 32px',textAlign:'left'}},
+        React.createElement('label',{style:{fontSize:13,fontWeight:600,color:'var(--muted)',display:'block',marginBottom:6}},'Your Name'),
+        React.createElement('input',{value:sn,onChange:e=>setSn(e.target.value),placeholder:'Enter your full name',style:{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid var(--border)',fontFamily:'var(--font-display)',fontSize:15,marginBottom:16,outline:'none'}}),
+        React.createElement('label',{style:{fontSize:13,fontWeight:600,color:'var(--muted)',display:'block',marginBottom:6}},'Year Level'),
+        React.createElement('select',{value:yl,onChange:e=>setYl(e.target.value),style:{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid var(--border)',fontFamily:'var(--font-display)',fontSize:15,marginBottom:24,outline:'none',color:yl?'var(--text)':'var(--muted)',background:'white'}},
+          React.createElement('option',{value:''},'Select year level'),[7,8,9,10].map(y=>React.createElement('option',{key:y,value:y},'Year '+y))),
+        React.createElement('button',{onClick:()=>{if(sn&&yl)setView("test");},disabled:!sn||!yl,style:{width:'100%',padding:'14px',borderRadius:10,border:'none',background:sn&&yl?'var(--red)':'var(--border)',color:'white',fontSize:16,fontWeight:700,cursor:sn&&yl?'pointer':'default'}},'Begin Test \u2192')),
+      React.createElement('button',{onClick:()=>setShowPin(true),style:{marginTop:16,width:'100%',padding:'14px 24px',borderRadius:12,border:'1px solid var(--border)',background:'var(--surface)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,fontSize:14,fontWeight:600,color:'var(--red)'}},'\uD83D\uDD12 Enter Teacher Mode'),
+      React.createElement('div',{style:{marginTop:16,padding:'16px 20px',background:'var(--red-light)',borderRadius:10,textAlign:'left'}},
+        React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:13,color:'#666',lineHeight:1.6}},React.createElement('strong',{style:{color:'var(--red)'}},'Instructions: '),'4 sections: Spelling, Editing, and two Writing tasks. About 40 minutes.'))));
+
+  // MAIN TEST VIEW - all sections rendered inline based on cs, no inner component functions
+  const pWc=(pA||'').split(/\s+/).filter(Boolean).length;
+  const cWc=(cA||'').split(/\s+/).filter(Boolean).length;
+
+  return React.createElement('div',{style:{fontFamily:'var(--font-display)',minHeight:'100vh',background:'var(--bg)'},ref:topRef},
+    showPin&&React.createElement(PinModal,{onSuccess:tmUnlocked,onClose:()=>setShowPin(false)}),
+    React.createElement(Header),
+    React.createElement('div',{style:{maxWidth:800,margin:'0 auto',padding:'24px 16px'}},
+
+      // ── SPELLING ──
+      cs===0&&React.createElement(React.Fragment,null,
+        React.createElement('h2',{style:{fontSize:22,fontWeight:800,color:'var(--red)',marginBottom:16}},'Section 1: Spelling Dictation'),
+        React.createElement('div',{style:{background:'var(--red-light)',borderRadius:12,padding:'16px 20px',marginBottom:20,border:'1px solid var(--red-mid)'}},
+          React.createElement('p',{style:{fontSize:14,fontWeight:700,color:'var(--red)',marginBottom:4}},'Teacher reads each word aloud, then the sentence. Student types the word only.')),
+        sub&&React.createElement('div',{style:{background:'var(--green-light)',borderRadius:10,padding:'12px 18px',marginBottom:20,border:'1px solid var(--green)'}},
+          React.createElement('span',{style:{fontSize:15,fontWeight:700,color:'var(--green)'}},'Score: '+spScore+'/'+SPELL.length)),
+        tm&&React.createElement('button',{onClick:()=>setShowSpAns(!showSpAns),style:{marginBottom:16,padding:'8px 16px',borderRadius:8,border:'1px solid var(--red)',background:showSpAns?'var(--red)':'white',color:showSpAns?'white':'var(--red)',fontSize:13,fontWeight:600,cursor:'pointer'}},showSpAns?'Hide Answers':'Show Answers'),
+        SPELL.map((w,i)=>{
+          const val=spA['sp_'+i]||'';
+          const ok=sub&&val.trim().toLowerCase()===w.word.toLowerCase();
+          const wrong=sub&&!ok;
+          return React.createElement('div',{key:i,style:{background:'var(--surface)',border:'1px solid '+(sub?(ok?'var(--green)':'var(--red)'):'var(--border)'),borderRadius:10,padding:'12px 16px',marginBottom:10,borderLeft:'4px solid '+(sub?(ok?'var(--green)':'var(--red)'):'var(--border-light)')}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
+              React.createElement('span',{style:{fontSize:14,fontWeight:800,color:'var(--red)',minWidth:28}},i+1+'.'),
+              React.createElement('span',{style:{fontSize:11,color:'var(--red)',background:'var(--red-light)',padding:'2px 8px',borderRadius:5,fontWeight:700}},w.level),
+              React.createElement('input',{value:val,onChange:e=>setSpA(prev=>({...prev,['sp_'+i]:e.target.value})),disabled:sub,placeholder:'Type word here...',style:{flex:1,minWidth:150,padding:'8px 12px',borderRadius:6,border:'1px solid var(--border)',fontSize:14,outline:'none',background:sub?'#f5f5f0':'white'}}),
+              ok&&React.createElement('span',{style:{fontSize:13,color:'var(--green)',fontWeight:700}},'\u2713'),
+              wrong&&React.createElement('span',{style:{fontSize:13,color:'var(--green)',fontWeight:700}},'\u2713 '+w.word),
+              React.createElement('button',{onClick:()=>setRevSent(p=>({...p,[i]:!p[i]})),style:{padding:'4px 10px',borderRadius:6,border:'1px solid var(--border)',background:'white',fontSize:11,color:'var(--muted)',cursor:'pointer'}},revSent[i]?'Hide':'Show',' sentence')),
+            revSent[i]&&React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:13,color:'#888',marginTop:8,fontStyle:'italic',paddingLeft:40}},'"'+w.sent+'"'),
+            showSpAns&&tm&&React.createElement('p',{style:{fontSize:12,color:'var(--red)',marginTop:4,paddingLeft:40,fontWeight:600}},'Answer: '+w.word));
+        })),
+
+      // ── EDITING ──
+      cs===1&&React.createElement(React.Fragment,null,
+        React.createElement('h2',{style:{fontSize:22,fontWeight:800,color:'var(--red)',marginBottom:16}},'Section 2: Editing Task'),
+        React.createElement('div',{style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'20px 24px',marginBottom:20}},
+          React.createElement('p',{style:{fontSize:13,fontWeight:700,color:'var(--red)',marginBottom:4,textTransform:'uppercase'}},'Passage to Edit'),
+          React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:14,color:'var(--muted)',marginBottom:12}},'This passage has errors. Rewrite it, correcting ALL errors.'),
+          React.createElement('div',{style:{background:'var(--bg)',borderRadius:8,padding:'16px 20px',border:'1px solid var(--border-light)',fontFamily:'var(--font-body)',fontSize:15,lineHeight:1.9,whiteSpace:'pre-line'}},EDIT_PASSAGE)),
+        React.createElement('div',{style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'18px 22px',marginBottom:20}},
+          React.createElement('p',{style:{fontSize:14,fontWeight:700,marginBottom:10}},'Write your corrected version:'),
+          React.createElement('textarea',{value:edA,onChange:e=>setEdA(e.target.value),disabled:sub&&!tm,placeholder:'Rewrite the corrected passage here...',rows:10,style:{width:'100%',fontFamily:'var(--font-body)',fontSize:14,lineHeight:1.8,padding:'14px 16px',border:'1px solid var(--border)',borderRadius:8,background:sub&&!tm?'#f5f5f0':'var(--bg)',resize:'vertical',outline:'none'}})),
+        tm&&sub&&React.createElement('div',{style:{background:'var(--red-light)',borderRadius:12,padding:'18px 22px',border:'1px solid var(--red-mid)'}},
+          React.createElement('p',{style:{fontSize:13,fontWeight:700,color:'var(--red)',marginBottom:10,textTransform:'uppercase'}},'Mark Scheme \u2014 '+EDIT_ERRORS.length+' errors'),
+          EDIT_ERRORS.map((er,i)=>React.createElement('div',{key:i,style:{display:'flex',gap:8,fontSize:13,marginBottom:3}},
+            React.createElement('span',{style:{color:'var(--red)',fontWeight:700,minWidth:20}},i+1+'.'),
+            React.createElement('span',{style:{color:'#555'}},React.createElement('strong',null,er.e),' \u2192 '+er.f),
+            React.createElement('span',{style:{color:'var(--muted)',fontSize:11,background:'white',padding:'0 6px',borderRadius:4}},er.t))),
+          React.createElement('div',{style:{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap',marginTop:14}},
+            ['Grammar','Punctuation','Spelling'].map((label,idx)=>{
+              const key=['gra','pun','spg'][idx];
+              const opts=[ALL_GRA,ALL_PUN,ALL_SPG][idx];
+              return React.createElement('div',{key:key,style:{display:'flex',alignItems:'center',gap:4}},
+                React.createElement('span',{style:{fontSize:12,fontWeight:600,color:'var(--red)'}},label+':'),
+                React.createElement(Sel,{value:edL[key],onChange:v=>setEdL(p=>({...p,[key]:v})),options:opts,color:'var(--red-mid)'}));
+            })))),
+
+      // ── PERSUASIVE ──
+      cs===2&&React.createElement(React.Fragment,null,
+        React.createElement('h2',{style:{fontSize:22,fontWeight:800,color:'var(--red)',marginBottom:16}},'Section 3: Persuasive Writing'),
+        React.createElement('div',{style:{background:'var(--red-light)',borderRadius:12,padding:'20px 24px',marginBottom:20,border:'1px solid var(--red-mid)'}},
+          React.createElement('span',{style:{fontSize:16,fontWeight:800,color:'var(--red)'}},'Persuasive Writing'),
+          React.createElement('span',{style:{fontSize:12,color:'var(--muted)',marginLeft:12}},'15\u201320 minutes'),
+          React.createElement('div',{style:{background:'white',borderRadius:8,padding:'14px 18px',border:'1px solid var(--border)',marginTop:12,textAlign:'center'}},
+            React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:17,fontWeight:600,color:'var(--red)',fontStyle:'italic'}},'\u201CAll students should be required to learn a second language from Year 7.\u201D')),
+          React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:13,color:'#555',lineHeight:1.6,marginTop:10}},'Write FOR or AGAINST. Include: clear position, at least two arguments with reasons, persuasive language, conclusion. 150\u2013400 words.')),
+        React.createElement('div',{style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'18px 22px',marginBottom:20}},
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:10}},
+            React.createElement('p',{style:{fontSize:14,fontWeight:700}},'Your response:'),
+            React.createElement('span',{style:{fontSize:12,color:'var(--muted)'}},pWc+' words')),
+          React.createElement('textarea',{value:pA,onChange:e=>setPA(e.target.value),disabled:sub&&!tm,placeholder:'Write your response here...',rows:16,style:{width:'100%',fontFamily:'var(--font-body)',fontSize:14,lineHeight:1.8,padding:'14px 16px',border:'1px solid var(--border)',borderRadius:8,background:sub&&!tm?'#f5f5f0':'var(--bg)',resize:'vertical',outline:'none'}})),
+        tm&&sub&&React.createElement('div',{style:{background:'var(--red-light)',borderRadius:12,padding:'18px 22px',border:'1px solid var(--red-mid)'}},
+          React.createElement('p',{style:{fontSize:13,fontWeight:700,color:'var(--red)',marginBottom:10,textTransform:'uppercase'}},'Mark Scheme'),
+          Object.entries(WRITING_MS).map(([lv,d])=>React.createElement('div',{key:lv,style:{display:'flex',gap:8,fontSize:13,marginBottom:3}},
+            React.createElement('span',{style:{color:'var(--red)',fontWeight:700,minWidth:56}},lv+':'),React.createElement('span',{style:{color:'#555'}},d))),
+          React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginTop:14}},
+            React.createElement('span',{style:{fontSize:13,fontWeight:600,color:'var(--red)'}},'Assign Level:'),
+            React.createElement(Sel,{value:pL,onChange:setPL,options:ALL_CRT,color:'var(--red-mid)'})))),
+
+      // ── CHOICE ──
+      cs===3&&React.createElement(React.Fragment,null,
+        React.createElement('h2',{style:{fontSize:22,fontWeight:800,color:'var(--red)',marginBottom:16}},'Section 4: Choice Writing'),
+        React.createElement('div',{style:{background:'var(--red-light)',borderRadius:12,padding:'20px 24px',marginBottom:20,border:'1px solid var(--red-mid)'}},
+          React.createElement('span',{style:{fontSize:16,fontWeight:800,color:'var(--red)'}},'Choose One'),
+          React.createElement('span',{style:{fontSize:12,color:'var(--muted)',marginLeft:12}},'15\u201320 minutes'),
+          React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:10,marginTop:12}},
+            [{label:'Option A \u2014 Imaginative',prompt:'Write a story beginning with: \u201CThe door had always been locked, but today it stood wide open.\u201D Develop character, setting and complication.'},
+             {label:'Option B \u2014 Informative',prompt:'Write an informative text explaining a topic from your learning areas. Include introduction, organised paragraphs, subject vocabulary.'}
+            ].map((opt,i)=>React.createElement('button',{key:i,onClick:()=>!sub&&setCOpt(i),style:{textAlign:'left',padding:'14px 18px',borderRadius:10,border:cOpt===i?'2px solid var(--red)':'1px solid var(--border)',background:cOpt===i?'white':'var(--bg)',cursor:sub?'default':'pointer'}},
+              React.createElement('p',{style:{fontSize:14,fontWeight:700,color:'var(--red)',marginBottom:4}},opt.label),
+              React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:13,color:'#555',lineHeight:1.6}},opt.prompt))))),
+        React.createElement('div',{style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'18px 22px',marginBottom:20}},
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:10}},
+            React.createElement('p',{style:{fontSize:14,fontWeight:700}},'Your response:'),
+            React.createElement('span',{style:{fontSize:12,color:'var(--muted)'}},cWc+' words')),
+          React.createElement('textarea',{value:cA,onChange:e=>setCA(e.target.value),disabled:sub&&!tm,placeholder:'Write your response here...',rows:16,style:{width:'100%',fontFamily:'var(--font-body)',fontSize:14,lineHeight:1.8,padding:'14px 16px',border:'1px solid var(--border)',borderRadius:8,background:sub&&!tm?'#f5f5f0':'var(--bg)',resize:'vertical',outline:'none'}})),
+        tm&&sub&&React.createElement('div',{style:{background:'var(--red-light)',borderRadius:12,padding:'18px 22px',border:'1px solid var(--red-mid)'}},
+          React.createElement('p',{style:{fontSize:13,fontWeight:700,color:'var(--red)',marginBottom:10,textTransform:'uppercase'}},'Mark Scheme'),
+          Object.entries(WRITING_MS).map(([lv,d])=>React.createElement('div',{key:lv,style:{display:'flex',gap:8,fontSize:13,marginBottom:3}},
+            React.createElement('span',{style:{color:'var(--red)',fontWeight:700,minWidth:56}},lv+':'),React.createElement('span',{style:{color:'#555'}},d))),
+          React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginTop:14}},
+            React.createElement('span',{style:{fontSize:13,fontWeight:600,color:'var(--red)'}},'Assign Level:'),
+            React.createElement(Sel,{value:cL,onChange:setCL,options:ALL_CRT,color:'var(--red-mid)'})))),
+
+      // ── NAV ──
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:28,paddingTop:20,borderTop:'1px solid var(--border)'}},
+        React.createElement('button',{onClick:()=>{setCs(Math.max(0,cs-1));topRef.current&&topRef.current.scrollIntoView();},disabled:cs===0,style:{padding:'10px 20px',borderRadius:8,border:'1px solid var(--border)',background:'var(--surface)',fontSize:14,fontWeight:600,cursor:cs===0?'default':'pointer',color:cs===0?'var(--muted)':'var(--text)'}},'\u2190 Previous'),
+        cs<3?React.createElement('button',{onClick:()=>{setCs(cs+1);topRef.current&&topRef.current.scrollIntoView();},style:{padding:'10px 24px',borderRadius:8,border:'none',background:'var(--red)',color:'white',fontSize:14,fontWeight:700,cursor:'pointer'}},'Next Section \u2192'):
+        !sub?React.createElement('button',{onClick:doSubmit,style:{padding:'12px 28px',borderRadius:10,border:'none',background:'var(--green)',color:'white',fontSize:15,fontWeight:700,cursor:'pointer'}},'\u2713 Submit & Download Results'):null),
+
+      // ── POST-SUBMIT ──
+      sub&&!tm&&React.createElement('div',{style:{marginTop:32,padding:'24px 28px',background:'var(--green-light)',borderRadius:14,border:'1px solid var(--green)'}},
+        React.createElement('h3',{style:{fontSize:18,fontWeight:800,color:'var(--green)',marginBottom:8}},'\u2713 Test Submitted!'),
+        React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:14,color:'#555',marginBottom:4}},'Spelling: ',React.createElement('strong',null,spScore+'/'+SPELL.length)),
+        React.createElement('p',{style:{fontFamily:'var(--font-body)',fontSize:14,color:'#555',marginBottom:16}},'Your PDF should have opened. Save as PDF and submit to your teacher.'),
+        React.createElement('button',{onClick:()=>genPDF(sn,yl,spA,spScore,spLevel,edA,{},pA,'',cA,'',cOpt,false),style:{padding:'10px 22px',borderRadius:8,border:'none',background:'var(--red)',color:'white',fontSize:14,fontWeight:700,cursor:'pointer'}},'\uD83D\uDDA8 Download Again')),
+
+      // ── TEACHER RESULTS ──
+      tm&&cs===3&&React.createElement('div',{style:{marginTop:32,padding:'24px 28px',background:'linear-gradient(135deg,#FDF0EE,#F9DDD9)',borderRadius:14,border:'2px solid var(--red-mid)'}},
+        React.createElement('h3',{style:{fontSize:18,fontWeight:800,color:'var(--red)',marginBottom:12}},'Teacher Results'),
+        [{l:'Spelling (dictation)',v:spLevel+' ('+spScore+'/'+SPELL.length+')'},{l:'Grammar (editing)',v:edL.gra||'\u2014'},{l:'Punctuation (editing)',v:edL.pun||'\u2014'},{l:'Spelling (editing)',v:edL.spg||'\u2014'},{l:'CrT \u2014 Persuasive',v:pL||'\u2014'},{l:'CrT \u2014 '+(cOpt===0?'Imaginative':cOpt===1?'Informative':'Choice'),v:cL||'\u2014'}].map((r,i)=>
+          React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border-light)'}},
+            React.createElement('span',{style:{fontSize:13}},r.l),
+            React.createElement('span',{style:{fontSize:13,fontWeight:700,color:r.v==='\u2014'?'var(--muted)':'var(--green)'}},r.v))),
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:16,flexWrap:'wrap'}},
+          React.createElement('button',{onClick:()=>genPDF(sn,yl,spA,spScore,spLevel,edA,edL,pA,pL,cA,cL,cOpt,true),style:{padding:'10px 22px',borderRadius:8,border:'none',background:'var(--red)',color:'white',fontSize:14,fontWeight:700,cursor:'pointer'}},'\uD83D\uDDA8 Download Marked Results'),
+          React.createElement('button',{onClick:()=>{setTm(false);setSub(false);setSpA({});setEdA('');setPA('');setCA('');setCOpt(null);setEdL({});setPL('');setCL('');setSn('');setYl('');setCs(0);setView('start');setRevSent({});setShowSpAns(false);},style:{padding:'10px 22px',borderRadius:8,border:'1px solid var(--border)',background:'var(--surface)',fontSize:14,fontWeight:600,cursor:'pointer'}},'\u2190 New Student')))));
+}
+ReactDOM.render(React.createElement(App),document.getElementById('root'));
+</script>
+</body>
+</html>
